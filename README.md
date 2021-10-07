@@ -1,2 +1,2 @@
-# k-NNClassification
+# FIT2082TimeSeriesDataMining
 Classifying 
