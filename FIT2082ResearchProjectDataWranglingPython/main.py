@@ -4,13 +4,14 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import pandas as pd
 import numpy
+import matplotlib.pyplot as plt
 def keyTimeSeries(timeSeries):
     return timeSeries[1]
 def CreateTupleTable(timeSeries):
-    TestClass = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TestClass.csv")
-    TestDist = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TestDist.csv")
-    TrainClass = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TrainClass.csv")
-    TrainDist = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TrainDist.csv")
+    TestClass = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TestClass.csv", encoding="utf8")
+    TestDist = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TestDist.csv",encoding="utf8")
+   # TrainClass = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TrainClass.csv",encoding="utf8")
+  #  TrainDist = open("Univariate_ts/"+timeSeries+"/"+timeSeries+"TrainDist.csv",encoding="utf8")
     Output = []
     TestArray = []
     TrainArray = []
@@ -26,8 +27,8 @@ def CreateTupleTable(timeSeries):
         TestArray.append(temp)
     TestClass.close()
     TestDist.close()
-    increment = 0
-    for ts in TrainClass:
+    return [TestArray, TrainArray]
+""" for ts in TrainClass:
         tclass = ts.strip(" ,\n").split(",")
         tdist = TrainDist.readline().strip(" ,\n")
         tdist = tdist.split(",")
@@ -43,7 +44,8 @@ def CreateTupleTable(timeSeries):
     for i in range(len(TrainArray)):
         for j in range(len(TrainArray[-1])-len(TrainArray[i])):
             TrainArray[i].append(["Null", float('inf')])
-    return [TestArray, TrainArray]
+    """
+
 def Average(inputList):
     sum = 0
     for i in inputList:
@@ -54,17 +56,19 @@ def VoteRankingBased(DistArray):
     Classes = []
     Tally = []
     Distances = []
+    Dict = {}
     for i in range(len(DistArray)):
-        if DistArray[i][0] not in Classes:
-            Classes.append(DistArray[i][0])
+        if DistArray[i][0].strip(" ") not in Classes:
+            Classes.append(DistArray[i][0].strip(" "))
             Tally.append(1)
             Distances.append([DistArray[i][1]])
         else:
             for j in range(len(Classes)):
-                if Classes[j] == DistArray[i][0]:
+                if Classes[j] == DistArray[i][0].strip(" "):
+                    s = j
                     break
-            Tally[j] += 1
-            Distances[j].append(DistArray[i][1])
+            Tally[s] += 1
+            Distances[s].append(DistArray[i][1])
     maxIndex = 0
     for i in range(len(Classes)):
         if Tally[i] > Tally[maxIndex]:
@@ -72,6 +76,9 @@ def VoteRankingBased(DistArray):
         elif Tally[i] == Tally[maxIndex]:
             if Average(Distances[i]) < Average (Distances[maxIndex]):
                 maxIndex = i
+    print("---------------------------")
+    print(DistArray)
+    print(Classes, Tally, Distances, maxIndex)
     return Classes[maxIndex]
 def SortDistances(timeSeriesArray):
     for i in timeSeriesArray:
@@ -82,10 +89,11 @@ def kNNClassification(k,timeSeriesArray):
         temp = []
         for j in range(k):
             temp.append(timeSeriesArray[i][j])
+        print(str(k)+" k:------------------------")
         output.append(VoteRankingBased(temp))
     return output
 def Test(ClassifiedTimeSeries, TimeSeries):
-    Tester = open("Univariate_ts/"+TimeSeries+"/"+TimeSeries+"_TEST.ts")
+    Tester = open("Univariate_ts/"+TimeSeries+"/"+TimeSeries+"_TEST.ts",encoding="utf8")
     Comparison = []
     SuccessRate = 0
     for string in Tester:
@@ -99,23 +107,41 @@ def Test(ClassifiedTimeSeries, TimeSeries):
       #  print(str(i)+"/"+str(len(Comparison)))
    # print(SuccessRate)
    # print(len(Comparison))
-    return 1-SuccessRate/len(Comparison)
+    return SuccessRate/len(Comparison)
 
 listTimeSeries = open("eeOutputFold0.csv")
 TimeSeriesTest = []
+outputfile = open("output.csv",'a')
 for s in listTimeSeries:
     s = s.split(',')
     TimeSeriesTest.append(s[0])
+outputlist =  []
+for i in range(1,6):
+    outputlist.append([])
 for i in range(1,len(TimeSeriesTest)):
-    if i == 23:
-        i += 1
-    print(TimeSeriesTest[i])
-    test = CreateTupleTable(TimeSeriesTest[i])
-    SortDistances(test[0])
- #   for i in test[0]:
-  #      print(i)
-    outlist = []
-    for j in range(1,6):
-        output = kNNClassification(j,  test[0])
-        outlist.append(Test(output, TimeSeriesTest[i]))
-    print(outlist)
+    if i != 23:
+        print(TimeSeriesTest[i])
+        test = CreateTupleTable(TimeSeriesTest[i])
+        SortDistances(test[0])
+     #   for i in test[0]:
+      #      print(i)
+        outlist = []
+        for j in range(1,6):
+            output = kNNClassification(j,  test[0])
+            outlist.append(Test(output, TimeSeriesTest[i]))
+            outputlist[j-1].append(Test(output,TimeSeriesTest[i]))
+
+        k = i
+        if i >= 24:
+            k = i-1
+        print(outputlist[0][k-1], outputlist[1][k-1],outputlist[2][k-1], outputlist[3][k-1],outputlist[4][k-1])
+        for j in range(0,5):
+            outputfile.write(str(j+1)+" NN, "+TimeSeriesTest[i]+", "+ str(outputlist[j][k-1])+"\n")
+
+figure,axis = plt.subplots(5,5)
+for i in range(0,5):
+    if i != 1:
+        for j in range(i,5):
+            axis[i,j].plot(outputlist[i],outputlist[j], ".")
+            axis[i,j].set_title(str(i+1)+" NN vs "+str(j+1)+"NN")
+plt.show()
